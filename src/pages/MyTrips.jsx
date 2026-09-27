@@ -27,19 +27,19 @@ export default function MyTrips() {
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
           <div>
             <div className="flex items-center gap-space-xs mb-1">
-              <span className="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">
-                Academic Research Prototype
+              <span className="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">
+                TripFit LK Platform
               </span>
               <span className="inline-block w-1 h-1 rounded-full bg-outline-variant" />
               <span className="font-label-sm text-label-sm text-on-surface-variant">
-                LKR Heuristic Engine v2.4
+                Smart Budget Travel
               </span>
             </div>
             <h1 className="font-headline-xl text-headline-xl text-on-surface font-bold">
               My Trips
             </h1>
             <p className="font-body-md text-body-md text-on-surface-variant mt-space-xs">
-              View, refine, and manage your saved algorithmic Sri Lankan travel plans.
+              View, refine, and manage your saved personalized Sri Lankan travel plans.
             </p>
           </div>
           <div className="flex items-center gap-space-sm self-start sm:self-center">

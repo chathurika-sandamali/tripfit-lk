@@ -120,7 +120,7 @@ npm run build
 │   │   └── images/         # Google Stitch photography & branding assets
 │   ├── components/
 │   │   ├── Navbar.jsx      # Fixed header with mobile navigation & active route pills
-│   │   ├── Footer.jsx      # Full academic footer & minimal wizard variant
+│   │   ├── Footer.jsx      # Comprehensive application footer & minimal wizard variant
 │   │   ├── ProgressSteps.jsx # 4-step wizard stepper with checkmarks
 │   │   ├── BudgetCard.jsx  # Reusable budget summary & status card
 │   │   ├── TripCard.jsx    # Destination preview card

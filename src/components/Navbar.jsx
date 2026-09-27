@@ -27,8 +27,8 @@ export default function Navbar() {
               TripFit LK
             </span>
           </Link>
-          <span className="hidden sm:inline-flex items-center px-space-sm py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
-            Student Research Project
+          <span className="hidden sm:inline-flex items-center px-space-sm py-0.5 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-medium">
+            AI Travel Platform
           </span>
         </div>
 

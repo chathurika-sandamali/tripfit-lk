@@ -7,9 +7,9 @@ export default function Footer({ minimal = false }) {
     return (
       <footer className="w-full py-6 border-t border-outline-variant/30 bg-surface text-center text-on-surface-variant font-label-sm text-label-sm">
         <div className="max-w-[1280px] mx-auto px-margin-mobile md:px-margin flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>TripFit LK • Budget-First Travel Intelligence Prototype</span>
+          <span>TripFit LK • Smart Budget Travel Platform</span>
           <span className="text-on-surface-variant/70">
-            University Research Project • Estimates subject to local seasonal rates
+            Real-time travel estimates subject to local seasonal rates
           </span>
         </div>
       </footer>
@@ -35,9 +35,9 @@ export default function Footer({ minimal = false }) {
             <p className="font-body-md text-body-md text-on-surface-variant max-w-sm">
               Sri Lanka's budget-first AI travel planner. Built around your actual spending limit, verified rail timetables, and authentic local stays.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
-              <span className="w-2 h-2 rounded-full bg-primary-container"></span>
-              Academic University Research Project
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-medium">
+              <span className="w-2 h-2 rounded-full bg-primary"></span>
+              AI Travel Platform
             </div>
           </div>
 
@@ -116,7 +116,7 @@ export default function Footer({ minimal = false }) {
 
         {/* Bottom copyright */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 font-label-sm text-label-sm text-on-surface-variant">
-          <p>© 2026 TripFit LK. All rights reserved. University Final Project.</p>
+          <p>© 2026 TripFit LK. All rights reserved.</p>
           <p className="text-on-surface-variant/80">
             Built with React, Vite &amp; Tailwind CSS. Powered by Google Gemini AI.
           </p>

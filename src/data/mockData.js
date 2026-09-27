@@ -11,7 +11,7 @@ export const DEFAULT_PLAN_PARAMS = {
 };
 
 export const PRESET_BUDGETS = [
-  { amount: 25000, label: "LKR 25,000", tag: "Student/Solo" },
+  { amount: 25000, label: "LKR 25,000", tag: "Backpacker / Solo" },
   { amount: 50000, label: "LKR 50,000", tag: "Weekend Explorer" },
   { amount: 100000, label: "LKR 100,000", tag: "Island Highlights", isDefault: true },
   { amount: 200000, label: "LKR 200,000", tag: "Comfort Island Tour" },

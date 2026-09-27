@@ -306,7 +306,7 @@ export default function Budget() {
               </div>
             </div>
 
-            {/* Academic note */}
+            {/* Planning note */}
             <div className="mt-space-md p-3 rounded-xl bg-surface-container-high/60 flex items-start gap-2.5">
               <span className="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">
                 info

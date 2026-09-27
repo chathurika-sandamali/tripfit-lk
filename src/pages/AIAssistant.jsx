@@ -168,13 +168,13 @@ export default function AIAssistant() {
 
   return (
     <div className="w-full bg-surface min-h-[calc(100vh-4rem)]">
-      {/* Top Academic Breadcrumb Banner */}
+      {/* Header Banner */}
       <section className="max-w-7xl mx-auto w-full px-margin-mobile md:px-margin pt-space-lg pb-space-sm">
         <div className="flex flex-col gap-space-xs">
           <div className="flex items-center gap-space-xs flex-wrap">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container text-on-secondary-container font-label-sm text-label-sm font-semibold tracking-wide uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse" />
-              Academic Research Prototype
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-sm text-label-sm font-semibold tracking-wide uppercase">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              Live Travel AI Assistant
             </span>
             <span className="text-outline-variant text-label-sm">•</span>
             <span className="font-label-sm text-label-sm text-secondary tracking-wider font-mono">
