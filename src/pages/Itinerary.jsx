@@ -123,6 +123,13 @@ export default function Itinerary() {
                   {status.statusText}
                 </span>
               </div>
+
+              <div className="absolute bottom-4 left-4 right-4 hidden lg:flex items-center justify-between pointer-events-none">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white font-label-sm text-label-sm border border-white/10">
+                  <span className="material-symbols-outlined text-[15px] text-primary-fixed">photo_camera</span>
+                  {image === 'kandy-lake' ? 'Beauty of Kandy • Sacred Lake & Temple' : title}
+                </span>
+              </div>
             </div>
 
             {/* Info / Meta Half */}

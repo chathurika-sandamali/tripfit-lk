@@ -84,7 +84,7 @@ export default function Recommendations() {
                 className="absolute inset-0 w-full h-full bg-cover bg-center"
                 style={{ backgroundImage: `url(${kandyImg})` }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-black/30" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25" />
 
               {/* Badges Overlay */}
               <div className="absolute inset-0 p-space-md flex flex-col justify-between pointer-events-none">
@@ -102,10 +102,13 @@ export default function Recommendations() {
                     {customAiTrip ? '96% Fit' : '88% Match'}
                   </span>
                 </div>
-                <div className="pointer-events-auto">
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white font-label-sm text-label-sm">
-                    <span className="material-symbols-outlined text-[14px]">location_on</span>
+                <div className="pointer-events-auto flex items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white font-label-sm text-label-sm border border-white/10">
+                    <span className="material-symbols-outlined text-[14px] text-primary-fixed">location_on</span>
                     {featuredTrip.destination || 'Kandy, Central Province'}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white/90 font-label-sm text-label-sm border border-white/10 text-xs">
+                    Beauty of Kandy
                   </span>
                 </div>
               </div>

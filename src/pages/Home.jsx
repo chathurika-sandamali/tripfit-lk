@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usePlan } from '../context/PlanContext';
 import { formatLKR } from '../data/mockData';
-import teaBg from '../assets/images/tea-country.png';
+import heroBg from '../assets/images/hero-bg.jpg';
+import kandyImg from '../assets/images/kandy-lake.png';
+import ellaImg from '../assets/images/ella-bridge.png';
 import hillBg from '../assets/images/hill-country.png';
 
 export default function Home() {
   const { budget: userBudget, getTripCalculations } = usePlan();
   const activeBudget = userBudget && userBudget > 0 ? userBudget : 100000;
-  const previewTrip = getTripCalculations('ella-adventure');
+  const [selectedPreview, setSelectedPreview] = useState('kandy-cultural-escape');
+  const previewTrip = getTripCalculations(selectedPreview);
   const breakdown = previewTrip.breakdown;
   const totalBreakdown =
     (breakdown.transport + breakdown.accommodation + breakdown.food + breakdown.activities) ||
@@ -30,16 +33,16 @@ export default function Home() {
     <div className="flex flex-col w-full">
       {/* HERO SECTION */}
       <section className="relative w-full overflow-hidden bg-primary text-on-primary">
-        {/* Background Image */}
+        {/* Attractive Background Image - Tallies with emerald & forest green theme */}
         <div
-          className="absolute inset-0 bg-cover bg-center filter brightness-95"
+          className="absolute inset-0 bg-cover bg-center filter brightness-105 contrast-[1.03]"
           style={{
-            backgroundImage: `linear-gradient(rgba(26, 77, 46, 0.78), rgba(26, 77, 46, 0.88)), url(${teaBg})`,
+            backgroundImage: `url(${heroBg})`,
           }}
         />
-        {/* Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#00210e]/95 via-[#00361a]/90 to-[#1a4d2e]/70" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/25" />
+        {/* Harmonious Color Overlay that tallies with brand colors while letting scenery shine through */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#00210e]/95 via-[#002b15]/80 to-[#002b15]/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#00210e]/90 via-transparent to-black/25" />
 
         <div className="relative max-w-[1280px] mx-auto px-margin-mobile md:px-margin py-space-xl lg:py-24">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-space-lg lg:gap-space-xl items-center">
@@ -120,21 +123,61 @@ export default function Home() {
                       TripFit LK
                     </span>
                   </div>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-sm text-label-sm font-semibold">
-                    AI Recommended
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPreview('kandy-cultural-escape')}
+                      className={`px-2.5 py-1 rounded-full font-label-sm text-label-sm font-semibold transition-all ${
+                        selectedPreview === 'kandy-cultural-escape'
+                          ? 'bg-primary text-on-primary shadow-xs'
+                          : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                      }`}
+                    >
+                      Kandy
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPreview('ella-adventure')}
+                      className={`px-2.5 py-1 rounded-full font-label-sm text-label-sm font-semibold transition-all ${
+                        selectedPreview === 'ella-adventure'
+                          ? 'bg-primary text-on-primary shadow-xs'
+                          : 'bg-surface-container text-on-surface-variant hover:bg-surface-container-high'
+                      }`}
+                    >
+                      Ella
+                    </button>
+                  </div>
+                </div>
+
+                {/* Destination Beauty Showcase Image */}
+                <div className="relative h-44 w-full rounded-xl overflow-hidden mb-space-sm group border border-outline-variant/30">
+                  <img
+                    src={selectedPreview === 'kandy-cultural-escape' ? kandyImg : ellaImg}
+                    alt={previewTrip.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/20" />
+                  <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white">
+                    <span className="font-label-md text-label-md font-semibold flex items-center gap-1 drop-shadow-sm">
+                      <span className="material-symbols-outlined text-[16px] text-primary-fixed">location_on</span>
+                      {selectedPreview === 'kandy-cultural-escape' ? 'Kandy Lake & Temple' : 'Ella Nine Arch Bridge'}
+                    </span>
+                    <span className="text-[11px] bg-black/60 backdrop-blur-md px-2 py-0.5 rounded text-white/95 font-medium border border-white/10">
+                      {selectedPreview === 'kandy-cultural-escape' ? 'Beauty of Kandy' : 'High Tea Country'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Route Header */}
-                <div className="pt-space-xs pb-space-md">
+                <div className="pt-space-xs pb-space-sm">
                   <h2 className="font-headline-lg text-headline-lg text-on-surface font-bold flex items-center gap-2">
-                    4-Day Ella Adventure
+                    {previewTrip.title}
                   </h2>
-                  <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
+                  <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5 line-clamp-1">
                     <span className="material-symbols-outlined text-[15px] text-secondary">
                       train
                     </span>
-                    Scenic Main Line Train • Demodara Loop • Little Adam's Peak
+                    {previewTrip.subtitle}
                   </p>
                 </div>
 
@@ -256,7 +299,7 @@ export default function Home() {
                     {previewTrip.travelers || 2} Travelers • {previewTrip.duration || 4} Days
                   </span>
                   <Link
-                    to="/trip/ella-adventure"
+                    to={`/trip/${previewTrip.id}`}
                     className="font-label-lg text-label-lg text-primary-container hover:text-primary inline-flex items-center gap-1 group font-semibold"
                   >
                     <span>Customize This Trip</span>
