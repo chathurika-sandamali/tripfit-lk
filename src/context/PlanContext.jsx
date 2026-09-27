@@ -61,16 +61,50 @@ export function PlanProvider({ children }) {
     }
   }, [state]);
 
+  // Helper to match trip ID based on destination query
+  const matchTripByDestination = (destinationStr) => {
+    const d = (destinationStr || '').toLowerCase();
+    if (
+      d.includes('galle') ||
+      d.includes('mirissa') ||
+      d.includes('south') ||
+      d.includes('beach') ||
+      d.includes('coast') ||
+      d.includes('unawatuna') ||
+      d.includes('hikkaduwa') ||
+      d.includes('matara')
+    ) {
+      return 'galle-coast';
+    }
+    if (
+      d.includes('ella') ||
+      d.includes('peak') ||
+      d.includes('bridge') ||
+      d.includes('highland') ||
+      d.includes('demodara') ||
+      d.includes('bandarawela') ||
+      d.includes('badulla')
+    ) {
+      return 'ella-adventure';
+    }
+    return 'kandy-cultural-escape';
+  };
+
   const setBudget = (budget) => {
     const num = Math.max(1000, Number(budget) || 0);
     setState((prev) => ({ ...prev, budget: num }));
   };
 
   const setTripDetails = (details) => {
-    setState((prev) => ({
-      ...prev,
-      ...details,
-    }));
+    setState((prev) => {
+      const nextDest = details.destination !== undefined ? details.destination : prev.destination;
+      const matchedTrip = matchTripByDestination(nextDest);
+      return {
+        ...prev,
+        ...details,
+        activeTripId: matchedTrip,
+      };
+    });
   };
 
   const setActiveTripId = (tripId) => {
@@ -158,9 +192,25 @@ export function PlanProvider({ children }) {
           activeTripId: result.id,
         }));
         return result;
+      } else {
+        // Fallback: resolve the best destination-matched itinerary
+        const matchedTrip = matchTripByDestination(planParams.destination);
+        setState((prev) => ({
+          ...prev,
+          aiCustomTrip: null,
+          isGeneratingAI: false,
+          activeTripId: matchedTrip,
+        }));
       }
     } catch (err) {
       console.warn('AI Generation failed, falling back to local model:', err);
+      const matchedTrip = matchTripByDestination(state.destination);
+      setState((prev) => ({
+        ...prev,
+        aiCustomTrip: null,
+        isGeneratingAI: false,
+        activeTripId: matchedTrip,
+      }));
     } finally {
       setState((prev) => ({ ...prev, isGeneratingAI: false }));
     }

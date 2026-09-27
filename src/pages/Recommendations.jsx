@@ -24,12 +24,93 @@ export default function Recommendations() {
 
   const [showCriteria, setShowCriteria] = useState(false);
 
-  const customAiTrip = aiCustomTrip ? getTripCalculations('ai-generated-custom-trip') : null;
+  // All base trips
   const kandyTrip = getTripCalculations('kandy-cultural-escape');
   const ellaTrip = getTripCalculations('ella-adventure');
   const galleTrip = getTripCalculations('galle-coast');
+  const customAiTrip = aiCustomTrip ? getTripCalculations('ai-generated-custom-trip') : null;
 
-  const featuredTrip = customAiTrip || kandyTrip;
+  // Intelligent destination resolver based on user's entered or selected destination
+  const destClean = (destination || '').toLowerCase().trim();
+  let destinationMatchedTrip = null;
+  if (
+    destClean.includes('galle') ||
+    destClean.includes('mirissa') ||
+    destClean.includes('south') ||
+    destClean.includes('beach') ||
+    destClean.includes('coast') ||
+    destClean.includes('unawatuna') ||
+    destClean.includes('hikkaduwa') ||
+    destClean.includes('matara')
+  ) {
+    destinationMatchedTrip = galleTrip;
+  } else if (
+    destClean.includes('ella') ||
+    destClean.includes('peak') ||
+    destClean.includes('bridge') ||
+    destClean.includes('demodara') ||
+    destClean.includes('highland') ||
+    destClean.includes('bandarawela') ||
+    destClean.includes('badulla')
+  ) {
+    destinationMatchedTrip = ellaTrip;
+  } else if (
+    destClean.includes('kandy') ||
+    destClean.includes('culture') ||
+    destClean.includes('temple') ||
+    destClean.includes('lake')
+  ) {
+    destinationMatchedTrip = kandyTrip;
+  }
+
+  // Active or matched trip takes priority over hardcoded fallback
+  const featuredTrip =
+    customAiTrip ||
+    destinationMatchedTrip ||
+    (activeTripId && getTripCalculations(activeTripId)) ||
+    kandyTrip;
+
+  // Remaining alternative trips to show in secondary cards
+  const allKnownTrips = [kandyTrip, ellaTrip, galleTrip];
+  const alternativeTrips = allKnownTrips.filter((t) => t.id !== featuredTrip.id);
+
+  const getTripImage = (trip) => {
+    if (
+      trip?.image === 'galle-coast' ||
+      trip?.id?.includes('galle') ||
+      (trip?.destination || '').toLowerCase().includes('galle')
+    ) {
+      return galleImg;
+    }
+    if (
+      trip?.image === 'ella-bridge' ||
+      trip?.id?.includes('ella') ||
+      (trip?.destination || '').toLowerCase().includes('ella')
+    ) {
+      return ellaImg;
+    }
+    return kandyImg;
+  };
+
+  const getTripBadgeLabel = (trip) => {
+    if (trip?.id?.includes('galle') || (trip?.destination || '').toLowerCase().includes('galle')) {
+      return 'Galle Fort & Mirissa Coast';
+    }
+    if (trip?.id?.includes('ella') || (trip?.destination || '').toLowerCase().includes('ella')) {
+      return 'Ella Nine Arch Viaduct';
+    }
+    return 'Beauty of Kandy';
+  };
+
+  const getTripRegionTag = (trip) => {
+    if (trip?.id?.includes('galle') || (trip?.destination || '').toLowerCase().includes('galle')) {
+      return 'South Coast';
+    }
+    if (trip?.id?.includes('ella') || (trip?.destination || '').toLowerCase().includes('ella')) {
+      return 'High Country';
+    }
+    return 'Cultural Capital';
+  };
 
   const handleSelectTrip = (tripId) => {
     setActiveTripId(tripId);
@@ -82,7 +163,7 @@ export default function Recommendations() {
             <div className="lg:col-span-5 relative min-h-[260px] lg:min-h-full">
               <div
                 className="absolute inset-0 w-full h-full bg-cover bg-center"
-                style={{ backgroundImage: `url(${kandyImg})` }}
+                style={{ backgroundImage: `url(${getTripImage(featuredTrip)})` }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/25" />
 
@@ -105,10 +186,10 @@ export default function Recommendations() {
                 <div className="pointer-events-auto flex items-center justify-between gap-2">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white font-label-sm text-label-sm border border-white/10">
                     <span className="material-symbols-outlined text-[14px] text-primary-fixed">location_on</span>
-                    {featuredTrip.destination || 'Kandy, Central Province'}
+                    {featuredTrip.destination || 'Sri Lanka'}
                   </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md text-white/90 font-label-sm text-label-sm border border-white/10 text-xs">
-                    Beauty of Kandy
+                    {getTripBadgeLabel(featuredTrip)}
                   </span>
                 </div>
               </div>
@@ -121,7 +202,7 @@ export default function Recommendations() {
                   <div className="flex items-center gap-space-xs text-secondary font-label-sm text-label-sm">
                     <span className="font-semibold text-primary">{featuredTrip.durationDays || duration} Days • {travelers} Travelers</span>
                     <span>•</span>
-                    <span>{featuredTrip.subtitle || 'Scenic Train & Cultural Hub'}</span>
+                    <span>{featuredTrip.subtitle || 'Scenic Train & Authentic Hub'}</span>
                   </div>
                   <span
                     className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold ${featuredTrip.status.statusBadgeClass}`}
@@ -138,24 +219,26 @@ export default function Recommendations() {
                     {featuredTrip.title}
                   </h2>
                   <p className="font-body-md text-body-md text-on-surface-variant mt-1">
-                    {featuredTrip.whyRecommended || "Explore Kandy's culture, nature, local food, and nearby experiences while keeping your trip safely aligned with your budget."}
+                    {featuredTrip.whyRecommended || `Explore ${featuredTrip.destination || 'Sri Lanka'} while keeping your expenses safely aligned with your budget.`}
                   </p>
                 </div>
 
                 {/* Route Stop Highlights Strip */}
                 <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
-                  <span className="px-2.5 py-1 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px] text-primary">train</span>
-                    Scenic Main Line Train
-                  </span>
-                  <span className="px-2.5 py-1 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px] text-primary">temple_buddhist</span>
-                    Temple of the Tooth
-                  </span>
-                  <span className="px-2.5 py-1 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px] text-primary">yard</span>
-                    Royal Botanic Gardens
-                  </span>
+                  {(featuredTrip.highlights && featuredTrip.highlights.length > 0
+                    ? featuredTrip.highlights.slice(0, 3)
+                    : featuredTrip.tags || ['Scenic Route', 'Authentic Stays', 'Budget Value']
+                  ).map((highlight, idx) => (
+                    <span
+                      key={idx}
+                      className="px-2.5 py-1 rounded-md bg-surface-container font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1 max-w-[280px] truncate"
+                    >
+                      <span className="material-symbols-outlined text-[14px] text-primary shrink-0">
+                        check_circle
+                      </span>
+                      <span className="truncate">{highlight}</span>
+                    </span>
+                  ))}
                 </div>
 
                 {/* Budget Breakdown Comparison Module */}
@@ -306,7 +389,7 @@ export default function Recommendations() {
                 </div>
                 <div>
                   <h3 className="font-headline-sm text-headline-sm text-primary font-bold">
-                    Why TripFit LK recommended Kandy
+                    Why TripFit LK recommended {featuredTrip.destination || featuredTrip.title}
                   </h3>
                   <p className="font-body-sm text-body-sm text-secondary">
                     Matched against your preferences and budget
@@ -325,14 +408,14 @@ export default function Recommendations() {
                 </span>
                 <div className="min-w-0">
                   <span className="font-label-lg text-label-lg text-on-surface block font-semibold">
-                    {kandyTrip.status.fits
+                    {featuredTrip.status.fits
                       ? `Fits your ${formatLKR(budget)} budget`
                       : `Can be optimized to fit ${formatLKR(budget)}`}
                   </span>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">
-                    {kandyTrip.status.fits
-                      ? `LKR ${kandyTrip.estimatedCost.toLocaleString()} estimate leaves a safe cushion of ${formatLKR(kandyTrip.status.difference)} for incidental expenses.`
-                      : `Current cost of LKR ${kandyTrip.estimatedCost.toLocaleString()} can be brought under budget by switching to local homestays or standard rail.`}
+                    {featuredTrip.status.fits
+                      ? `LKR ${featuredTrip.estimatedCost.toLocaleString()} estimate leaves a safe cushion of ${formatLKR(featuredTrip.status.difference)} for incidental expenses.`
+                      : `Current cost of LKR ${featuredTrip.estimatedCost.toLocaleString()} can be brought under budget by switching to local homestays or standard rail.`}
                   </span>
                 </div>
               </div>
@@ -346,7 +429,9 @@ export default function Recommendations() {
                     Matches your selected interests
                   </span>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">
-                    Prioritizes the historic Temple of Tooth, lush Peradeniya Botanic Gardens, and authentic central market street cuisine.
+                    {featuredTrip.highlights && featuredTrip.highlights.length > 0
+                      ? `Prioritizes ${featuredTrip.highlights.slice(0, 2).join(' and ')}.`
+                      : `Customized itinerary aligned with your ${featuredTrip.destination || 'chosen region'} preferences.`}
                   </span>
                 </div>
               </div>
@@ -357,10 +442,12 @@ export default function Recommendations() {
                 </span>
                 <div className="min-w-0">
                   <span className="font-label-lg text-label-lg text-on-surface block font-semibold">
-                    Suitable for a {duration} trip duration
+                    Suitable for a {duration || (featuredTrip.durationDays + ' Days')} trip duration
                   </span>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">
-                    Optimal route pacing that eliminates transit exhaustion, requiring only ~3h train time from Colombo Fort.
+                    {featuredTrip.route
+                      ? `Convenient travel route: ${featuredTrip.route}.`
+                      : 'Optimal pacing that eliminates transit exhaustion and maximizes sightseeing.'}
                   </span>
                 </div>
               </div>
@@ -374,7 +461,7 @@ export default function Recommendations() {
                     {travelStyle} travel style alignment
                   </span>
                   <span className="font-body-sm text-body-sm text-on-surface-variant">
-                    Combines comfortable hilltop guesthouse stays with iconic 2nd class reserved scenic railway tickets.
+                    {featuredTrip.subtitle || 'Combines verified authentic stays with reliable public and local transit.'}
                   </span>
                 </div>
               </div>
@@ -394,210 +481,118 @@ export default function Recommendations() {
               </p>
             </div>
             <span className="font-label-md text-label-md text-secondary">
-              2 Alternative Options Available
+              {alternativeTrips.length} Alternative Options Available
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-            {/* Card 1: Ella */}
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all border border-outline-variant/30">
-              <div>
-                <div className="relative h-48 w-full overflow-hidden">
-                  <div
-                    className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
-                    style={{ backgroundImage: `url(${ellaImg})` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
-                  <div className="absolute top-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow ${ellaTrip.status.statusBadgeClass}`}
-                    >
-                      <span className="material-symbols-outlined text-[13px]">
-                        {ellaTrip.status.fits ? 'check_circle' : 'warning'}
-                      </span>
-                      {ellaTrip.status.statusText}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3 text-white flex items-center justify-between">
-                    <span className="font-label-md text-label-md text-surface-container-lowest font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                      {ellaTrip.durationDays} Days • {travelers} Travelers
-                    </span>
-                    <span className="font-label-sm text-label-sm bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">
-                      High Country
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-space-md space-y-space-sm">
-                  <div>
-                    <h4 className="font-headline-md text-headline-md text-primary font-bold">
-                      {ellaTrip.title}
-                    </h4>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-1">
-                      {ellaTrip.subtitle}
-                    </p>
-                  </div>
-
-                  {/* Cost Summary Block */}
-                  <div className="bg-surface-container-low p-space-sm rounded-lg space-y-2 border border-outline-variant/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-secondary block">Estimated Cost</span>
-                        <span
-                          className={`font-headline-sm text-headline-sm font-bold ${
-                            ellaTrip.status.fits ? 'text-primary' : 'text-amber-800'
-                          }`}
-                        >
-                          {formatLKR(ellaTrip.estimatedCost)}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-label-sm text-label-sm text-secondary block">
-                          {ellaTrip.status.fits ? 'Buffer' : 'Over Budget'}
-                        </span>
-                        <span
-                          className={`font-label-lg text-label-lg font-bold ${
-                            ellaTrip.status.fits ? 'text-primary' : 'text-amber-800'
-                          }`}
-                        >
-                          {ellaTrip.status.fits
-                            ? `+${formatLKR(ellaTrip.status.difference)}`
-                            : `-${formatLKR(ellaTrip.status.difference)}`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-secondary font-label-sm">
-                      <span>Target: {formatLKR(budget)}</span>
-                      <span className={ellaTrip.status.fits ? 'text-primary font-semibold' : 'text-amber-800 font-semibold'}>
-                        {ellaTrip.status.fits ? 'Budget check passed' : '1-click optimization available'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-space-md pt-0 flex gap-2">
-                <Link
-                  to={`/trip/${ellaTrip.id}`}
-                  onClick={() => handleSelectTrip(ellaTrip.id)}
-                  className="flex-1 py-2.5 px-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 font-semibold"
+            {alternativeTrips.map((altTrip) => {
+              const altImg = getTripImage(altTrip);
+              const altRegion = getTripRegionTag(altTrip);
+              return (
+                <div
+                  key={altTrip.id}
+                  className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all border border-outline-variant/30"
                 >
-                  <span>View Trip Itinerary</span>
-                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-                </Link>
-                {!ellaTrip.status.fits && (
-                  <Link
-                    to={`/trip/${ellaTrip.id}/optimize`}
-                    onClick={() => handleSelectTrip(ellaTrip.id)}
-                    className="py-2.5 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-label-sm text-label-sm font-semibold flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">tune</span>
-                    <span>Optimize</span>
-                  </Link>
-                )}
-              </div>
-            </div>
-
-            {/* Card 2: Galle & Mirissa */}
-            <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden flex flex-col justify-between group hover:shadow-md transition-all border border-outline-variant/30">
-              <div>
-                <div className="relative h-48 w-full overflow-hidden">
-                  <div
-                    className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
-                    style={{ backgroundImage: `url(${galleImg})` }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
-                  <div className="absolute top-3 left-3">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow ${galleTrip.status.statusBadgeClass}`}
-                    >
-                      <span className="material-symbols-outlined text-[13px]">
-                        {galleTrip.status.fits ? 'check_circle' : 'warning'}
-                      </span>
-                      {galleTrip.status.statusText}
-                    </span>
-                  </div>
-                  <div className="absolute bottom-3 left-3 right-3 text-white flex items-center justify-between">
-                    <span className="font-label-md text-label-md text-surface-container-lowest font-medium flex items-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">calendar_today</span>
-                      {galleTrip.durationDays} Days • {travelers} Travelers
-                    </span>
-                    <span className="font-label-sm text-label-sm bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">
-                      South Coast
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-space-md space-y-space-sm">
                   <div>
-                    <h4 className="font-headline-md text-headline-md text-primary font-bold">
-                      {galleTrip.title}
-                    </h4>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-1">
-                      {galleTrip.subtitle}
-                    </p>
+                    <div className="relative h-48 w-full overflow-hidden">
+                      <div
+                        className="w-full h-full bg-cover bg-center group-hover:scale-105 transition-transform duration-500"
+                        style={{ backgroundImage: `url(${altImg})` }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/20" />
+                      <div className="absolute top-3 left-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-sm text-label-sm font-semibold shadow ${altTrip.status.statusBadgeClass}`}
+                        >
+                          <span className="material-symbols-outlined text-[13px]">
+                            {altTrip.status.fits ? 'check_circle' : 'warning'}
+                          </span>
+                          {altTrip.status.statusText}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-3 left-3 right-3 text-white flex items-center justify-between">
+                        <span className="font-label-md text-label-md text-surface-container-lowest font-medium flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">calendar_today</span>
+                          {altTrip.durationDays} Days • {travelers} Travelers
+                        </span>
+                        <span className="font-label-sm text-label-sm bg-white/20 backdrop-blur-md px-2 py-0.5 rounded">
+                          {altRegion}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-space-md space-y-space-sm">
+                      <div>
+                        <h4 className="font-headline-md text-headline-md text-primary font-bold">
+                          {altTrip.title}
+                        </h4>
+                        <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-1">
+                          {altTrip.subtitle}
+                        </p>
+                      </div>
+
+                      {/* Cost Summary Block */}
+                      <div className="bg-surface-container-low p-space-sm rounded-lg space-y-2 border border-outline-variant/20">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-label-sm text-label-sm text-secondary block">Estimated Cost</span>
+                            <span
+                              className={`font-headline-sm text-headline-sm font-bold ${
+                                altTrip.status.fits ? 'text-primary' : 'text-amber-800'
+                              }`}
+                            >
+                              {formatLKR(altTrip.estimatedCost)}
+                            </span>
+                          </div>
+                          <div className="text-right">
+                            <span className="font-label-sm text-label-sm text-secondary block">
+                              {altTrip.status.fits ? 'Buffer' : 'Over Budget'}
+                            </span>
+                            <span
+                              className={`font-label-lg text-label-lg font-bold ${
+                                altTrip.status.fits ? 'text-primary' : 'text-amber-800'
+                              }`}
+                            >
+                              {altTrip.status.fits
+                                ? `+${formatLKR(altTrip.status.difference)}`
+                                : `-${formatLKR(altTrip.status.difference)}`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex justify-between text-[11px] text-secondary font-label-sm">
+                          <span>Target: {formatLKR(budget)}</span>
+                          <span className={altTrip.status.fits ? 'text-primary font-semibold' : 'text-amber-800 font-semibold'}>
+                            {altTrip.status.fits ? 'Budget check passed' : '1-click optimization available'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Cost Summary Block */}
-                  <div className="bg-surface-container-low p-space-sm rounded-lg space-y-2 border border-outline-variant/20">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="font-label-sm text-label-sm text-secondary block">Estimated Cost</span>
-                        <span
-                          className={`font-headline-sm text-headline-sm font-bold ${
-                            galleTrip.status.fits ? 'text-primary' : 'text-amber-800'
-                          }`}
-                        >
-                          {formatLKR(galleTrip.estimatedCost)}
-                        </span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-label-sm text-label-sm text-secondary block">
-                          {galleTrip.status.fits ? 'Buffer Remaining' : 'Over Budget'}
-                        </span>
-                        <span
-                          className={`font-label-lg text-label-lg font-bold ${
-                            galleTrip.status.fits ? 'text-primary' : 'text-amber-800'
-                          }`}
-                        >
-                          {galleTrip.status.fits
-                            ? `+${formatLKR(galleTrip.status.difference)}`
-                            : `-${formatLKR(galleTrip.status.difference)}`}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between text-[11px] text-secondary font-label-sm">
-                      <span>Target: {formatLKR(budget)}</span>
-                      <span className={galleTrip.status.fits ? 'text-primary font-semibold' : 'text-amber-800 font-semibold'}>
-                        {galleTrip.status.fits ? 'Within Budget' : 'Optimization available'}
-                      </span>
-                    </div>
+                  <div className="p-space-md pt-0 flex gap-2">
+                    <Link
+                      to={`/trip/${altTrip.id}`}
+                      onClick={() => handleSelectTrip(altTrip.id)}
+                      className="flex-1 py-2.5 px-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 font-semibold"
+                    >
+                      <span>View Trip Itinerary</span>
+                      <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                    </Link>
+                    {!altTrip.status.fits && (
+                      <Link
+                        to={`/trip/${altTrip.id}/optimize`}
+                        onClick={() => handleSelectTrip(altTrip.id)}
+                        className="py-2.5 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-label-sm text-label-sm font-semibold flex items-center gap-1"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">tune</span>
+                        <span>Optimize</span>
+                      </Link>
+                    )}
                   </div>
                 </div>
-              </div>
-
-              <div className="p-space-md pt-0 flex gap-2">
-                <Link
-                  to={`/trip/${galleTrip.id}`}
-                  onClick={() => handleSelectTrip(galleTrip.id)}
-                  className="flex-1 py-2.5 px-space-md rounded-lg bg-surface-container hover:bg-surface-container-high text-primary font-label-lg text-label-lg transition-colors flex items-center justify-center gap-2 font-semibold"
-                >
-                  <span>View Trip Itinerary</span>
-                  <span className="material-symbols-outlined text-[16px]">chevron_right</span>
-                </Link>
-                {!galleTrip.status.fits && (
-                  <Link
-                    to={`/trip/${galleTrip.id}/optimize`}
-                    onClick={() => handleSelectTrip(galleTrip.id)}
-                    className="py-2.5 px-3 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 font-label-sm text-label-sm font-semibold flex items-center gap-1"
-                  >
-                    <span className="material-symbols-outlined text-[16px]">tune</span>
-                    <span>Optimize</span>
-                  </Link>
-                )}
-              </div>
-            </div>
+              );
+            })}
           </div>
         </div>
 
