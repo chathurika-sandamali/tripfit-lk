@@ -122,6 +122,34 @@ export default function TripDetails() {
               )}
             </div>
 
+            {/* Quick Popular Destination Selectors */}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <span className="font-label-sm text-label-sm text-secondary font-medium">Quick Pick:</span>
+              {[
+                { name: 'Galle & South Coast', label: '🏖️ Galle & South Coast' },
+                { name: 'Kandy & Hill Country', label: '🏛️ Kandy' },
+                { name: 'Ella & Tea Country', label: '🚂 Ella' },
+                { name: 'Sigiriya & Dambulla', label: '🦁 Sigiriya' },
+              ].map((p) => {
+                const firstWord = p.name.split(' ')[0].toLowerCase();
+                const isSelected = destination.toLowerCase().includes(firstWord);
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => setDestination(p.name)}
+                    className={`px-3 py-1 rounded-full font-label-sm text-label-sm transition-all border cursor-pointer ${
+                      isSelected
+                        ? 'bg-primary text-on-primary border-primary shadow-xs font-semibold'
+                        : 'bg-surface-container hover:bg-surface-container-high text-on-surface border-outline-variant/30 font-medium'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Quick Recommendation Suggestion */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface-container-low rounded-xl p-3.5 border border-outline-variant/20">
               <div className="flex items-start sm:items-center gap-2.5">
