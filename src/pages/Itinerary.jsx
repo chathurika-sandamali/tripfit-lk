@@ -1,8 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import ProgressSteps from '../components/ProgressSteps';
-import { formatLKR } from '../data/mockData';
+import { formatLKR, calculateBudgetStatus } from '../data/mockData';
 import { usePlan } from '../context/PlanContext';
+import { buildTripCostBreakdown } from '../services/tripCostEngine.js';
 import kandyImg from '../assets/images/kandy-lake.png';
 import ellaImg from '../assets/images/ella-bridge.png';
 import galleImg from '../assets/images/galle-coast.png';
@@ -21,11 +22,52 @@ export default function Itinerary() {
   const effectiveTripId = tripId || 'kandy-cultural-escape';
   const selectedTrip = getTripCalculations(effectiveTripId);
 
+  // Live / Hybrid Cost Engine state
+  const [costBreakdown, setCostBreakdown] = useState(null);
+  const [isLoadingCost, setIsLoadingCost] = useState(false);
+
   useEffect(() => {
     if (selectedTrip?.id) {
       setActiveTripId(selectedTrip.id);
     }
   }, [selectedTrip?.id, setActiveTripId]);
+
+  // Fetch real/hybrid trip cost breakdown via tripCostEngine
+  useEffect(() => {
+    let isCancelled = false;
+    async function loadTripCosts() {
+      setIsLoadingCost(true);
+      try {
+        const result = await buildTripCostBreakdown({
+          origin: 'Colombo Fort',
+          destination: selectedTrip.destination || selectedTrip.title,
+          travelers: selectedTrip.travelers,
+          durationDays: selectedTrip.durationDays,
+          travelStyle: selectedTrip.travelStyle,
+        });
+        if (!isCancelled && result) {
+          setCostBreakdown(result);
+        }
+      } catch (err) {
+        console.warn('Cost engine load error:', err);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingCost(false);
+        }
+      }
+    }
+
+    loadTripCosts();
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    selectedTrip.id,
+    selectedTrip.destination,
+    selectedTrip.travelers,
+    selectedTrip.durationDays,
+    selectedTrip.travelStyle,
+  ]);
 
   const {
     id,
@@ -47,6 +89,51 @@ export default function Itinerary() {
     days = [],
     isSaved,
   } = selectedTrip;
+
+  // Active breakdown prioritized by tripCostEngine, falling back to mockData/AI heuristics
+  const engineBreakdown = costBreakdown
+    ? {
+        transport: costBreakdown.transport.cost,
+        accommodation: costBreakdown.accommodation.cost,
+        food: costBreakdown.food.cost,
+        activities: costBreakdown.activities.cost,
+      }
+    : breakdown;
+
+  // Re-apply any active optimization levers onto the engine breakdown
+  const appliedLevers = selectedTrip.appliedLevers || {};
+  let totalAppliedSavings = 0;
+  const activeBreakdown = { ...engineBreakdown };
+
+  (selectedTrip.optimizationOptions || []).forEach((opt) => {
+    if (appliedLevers[opt.id]) {
+      totalAppliedSavings += opt.savings;
+      if (opt.categoryKey === 'transport' && activeBreakdown.transport) {
+        activeBreakdown.transport = Math.max(0, activeBreakdown.transport - opt.savings);
+      } else if (opt.categoryKey === 'accommodation' && activeBreakdown.accommodation) {
+        activeBreakdown.accommodation = Math.max(0, activeBreakdown.accommodation - opt.savings);
+      } else if (opt.categoryKey === 'activities' && activeBreakdown.activities) {
+        activeBreakdown.activities = Math.max(0, activeBreakdown.activities - opt.savings);
+      }
+    }
+  });
+
+  const activeTotalCost = costBreakdown
+    ? Math.max(0, costBreakdown.totalCost - totalAppliedSavings)
+    : estimatedCost;
+
+  const activeStatus = calculateBudgetStatus(
+    targetBudget,
+    activeTotalCost,
+    hasAppliedSavings || totalAppliedSavings > 0
+  );
+
+  const dataSources = costBreakdown?.dataSources || {
+    transport: 'estimated',
+    accommodation: 'estimated',
+    food: 'estimated',
+    activities: 'estimated',
+  };
 
   const heroImage = imageMap[image] || kandyImg;
 
@@ -115,12 +202,12 @@ export default function Itinerary() {
                   AI Recommended
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-sm font-label-sm shadow-sm font-semibold ${status.statusBadgeClass}`}
+                  className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-label-sm font-label-sm shadow-sm font-semibold ${activeStatus.statusBadgeClass}`}
                 >
                   <span className="material-symbols-outlined text-[14px]">
-                    {status.fits ? 'check_circle' : 'warning'}
+                    {activeStatus.fits ? 'check_circle' : 'warning'}
                   </span>
-                  {status.statusText}
+                  {activeStatus.statusText}
                 </span>
               </div>
 
@@ -137,13 +224,13 @@ export default function Itinerary() {
               <div className="flex flex-col gap-space-sm">
                 <div className="flex items-center justify-between">
                   <span
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-semibold ${status.statusBadgeClass}`}
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-label-sm font-label-sm font-semibold ${activeStatus.statusBadgeClass}`}
                   >
                     <span className="material-symbols-outlined text-[16px]">
-                      {status.fits ? 'verified' : 'warning'}
+                      {activeStatus.fits ? 'verified' : 'warning'}
                     </span>
-                    {status.fits
-                      ? hasAppliedSavings
+                    {activeStatus.fits
+                      ? hasAppliedSavings || totalAppliedSavings > 0
                         ? 'Optimized to Fit Budget'
                         : 'Within Budget Check Passed'
                       : 'Optimization Required'}
@@ -217,10 +304,10 @@ export default function Itinerary() {
                   </span>
                   <span
                     className={`font-headline-sm text-headline-sm font-bold ${
-                      status.fits ? 'text-primary' : 'text-amber-800'
+                      activeStatus.fits ? 'text-primary' : 'text-amber-800'
                     }`}
                   >
-                    {formatLKR(estimatedCost)}
+                    {formatLKR(activeTotalCost)}
                   </span>
                 </div>
               </div>
@@ -229,7 +316,7 @@ export default function Itinerary() {
         </div>
 
         {/* OVER-BUDGET ALERT BANNER (if over budget) */}
-        {!status.fits && (
+        {!activeStatus.fits && (
           <div className="p-4 rounded-xl bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-start sm:items-center gap-3">
               <span className="material-symbols-outlined text-amber-800 text-[24px]">
@@ -237,7 +324,7 @@ export default function Itinerary() {
               </span>
               <div>
                 <h3 className="font-label-lg text-label-lg font-bold text-amber-900">
-                  This trip is {formatLKR(status.difference)} over your {formatLKR(targetBudget)} spending limit
+                  This trip is {formatLKR(activeStatus.difference)} over your {formatLKR(targetBudget)} spending limit
                 </h3>
                 <p className="font-body-sm text-body-sm text-amber-800">
                   Use TripFit LK's budget optimizer to switch private transfers to scenic rail and homestays.
@@ -255,7 +342,7 @@ export default function Itinerary() {
         )}
 
         {/* OPTIMIZED SUCCESS BANNER (if savings were applied) */}
-        {hasAppliedSavings && status.fits && (
+        {(hasAppliedSavings || totalAppliedSavings > 0) && activeStatus.fits && (
           <div className="p-4 rounded-xl bg-primary-fixed/40 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
             <div className="flex items-start sm:items-center gap-3">
               <span className="material-symbols-outlined text-primary text-[24px]">
@@ -263,10 +350,10 @@ export default function Itinerary() {
               </span>
               <div>
                 <h3 className="font-label-lg text-label-lg font-bold text-primary">
-                  Trip Optimized: Saved {formatLKR(totalSavings)}
+                  Trip Optimized: Saved {formatLKR(totalAppliedSavings || totalSavings)}
                 </h3>
                 <p className="font-body-sm text-body-sm text-on-surface-variant">
-                  Adjusted transport and accommodation options bring this trip safely within your {formatLKR(targetBudget)} budget with a {formatLKR(status.difference)} buffer remaining.
+                  Adjusted transport and accommodation options bring this trip safely within your {formatLKR(targetBudget)} budget with a {formatLKR(activeStatus.difference)} buffer remaining.
                 </p>
               </div>
             </div>
@@ -395,12 +482,12 @@ export default function Itinerary() {
                   Budget Health Check
                 </span>
                 <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-semibold ${status.statusBadgeClass}`}
+                  className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-semibold ${activeStatus.statusBadgeClass}`}
                 >
                   <span className="material-symbols-outlined text-[14px]">
-                    {status.fits ? 'check_circle' : 'warning'}
+                    {activeStatus.fits ? 'check_circle' : 'warning'}
                   </span>
-                  {status.statusText}
+                  {activeStatus.statusText}
                 </span>
               </div>
 
@@ -415,22 +502,22 @@ export default function Itinerary() {
                   <span className="text-body-sm text-on-surface-variant">Estimated Itinerary Total</span>
                   <span
                     className={`font-headline-sm text-headline-sm font-bold ${
-                      status.fits ? 'text-primary' : 'text-amber-800'
+                      activeStatus.fits ? 'text-primary' : 'text-amber-800'
                     }`}
                   >
-                    {formatLKR(estimatedCost)}
+                    {formatLKR(activeTotalCost)}
                   </span>
                 </div>
                 <div className="pt-2 border-t border-outline-variant/20 flex justify-between items-baseline">
                   <span className="font-label-md text-label-md font-semibold text-on-surface">
-                    {status.fits ? 'Remaining Buffer' : 'Over Spending Limit'}
+                    {activeStatus.fits ? 'Remaining Buffer' : 'Over Spending Limit'}
                   </span>
                   <span
                     className={`font-headline-sm text-headline-sm font-bold ${
-                      status.fits ? 'text-primary' : 'text-amber-800'
+                      activeStatus.fits ? 'text-primary' : 'text-amber-800'
                     }`}
                   >
-                    {status.fits ? `+${formatLKR(status.difference)}` : `-${formatLKR(status.difference)}`}
+                    {activeStatus.fits ? `+${formatLKR(activeStatus.difference)}` : `-${formatLKR(activeStatus.difference)}`}
                   </span>
                 </div>
               </div>
@@ -440,93 +527,179 @@ export default function Itinerary() {
                 <div className="flex items-center justify-between text-label-sm font-label-sm">
                   <span className="text-on-surface font-medium">Budget Efficiency</span>
                   <span className="text-secondary font-mono text-[11px]">
-                    {Math.round((estimatedCost / targetBudget) * 100)}% of Limit
+                    {Math.round((activeTotalCost / targetBudget) * 100)}% of Limit
                   </span>
                 </div>
                 <div className="w-full h-3 rounded-full bg-surface-container overflow-hidden flex">
                   <div
-                    className={`h-full ${status.fits ? 'bg-primary' : 'bg-amber-700'}`}
-                    style={{ width: `${Math.min(100, (estimatedCost / targetBudget) * 100)}%` }}
+                    className={`h-full ${activeStatus.fits ? 'bg-primary' : 'bg-amber-700'}`}
+                    style={{ width: `${Math.min(100, (activeTotalCost / targetBudget) * 100)}%` }}
                   />
                 </div>
               </div>
 
               <p className="font-body-sm text-body-sm text-secondary italic">
-                Prices are prototype estimates based on Sri Lanka Railways and verified local homestay averages.
+                {costBreakdown?.transport?.isLive || costBreakdown?.accommodation?.isLive
+                  ? 'Includes verified live partner rates blended with Sri Lanka regulated tariffs.'
+                  : 'Prices calculated via Sri Lanka National Transport Commission (NTC) & local homestay baselines.'}
               </p>
 
               <Link
                 to={`/trip/${id}/optimize`}
                 className={`w-full py-2.5 px-4 rounded-lg font-label-md text-label-md font-bold flex items-center justify-center gap-2 text-center transition-all shadow-sm ${
-                  !status.fits
+                  !activeStatus.fits
                     ? 'bg-amber-800 hover:bg-amber-900 text-white'
                     : 'bg-primary-container hover:bg-primary text-on-primary'
                 }`}
               >
                 <span className="material-symbols-outlined text-[18px]">tune</span>
-                <span>{status.fits ? 'Customize Budget Levers' : 'Optimize Budget Now'}</span>
+                <span>{activeStatus.fits ? 'Customize Budget Levers' : 'Optimize Budget Now'}</span>
               </Link>
             </div>
 
-            {/* 2. "WHERE YOUR BUDGET GOES" CARD */}
-            {breakdown && (
+            {/* 2. "WHERE YOUR BUDGET GOES" CARD WITH LIVE / ESTIMATED BADGES */}
+            {activeBreakdown && (
               <div className="bg-surface-container-lowest rounded-2xl p-space-md sm:p-space-lg shadow-sm flex flex-col gap-space-md border border-outline-variant/30">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold">
-                    Where your budget goes
-                  </h3>
-                  <span className="text-label-sm font-label-sm text-secondary">
-                    4 Categories
-                  </span>
+                  <div>
+                    <h3 className="font-headline-sm text-headline-sm text-on-surface font-bold">
+                      Where your budget goes
+                    </h3>
+                    <span className="text-[11px] text-secondary block">
+                      Live Transit &amp; Hotel APIs + Regulated Tariffs
+                    </span>
+                  </div>
+                  {isLoadingCost ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] text-primary">
+                      <span className="material-symbols-outlined text-[14px] animate-spin">
+                        progress_activity
+                      </span>
+                      Checking rates...
+                    </span>
+                  ) : (
+                    <span className="text-label-sm font-label-sm text-secondary">
+                      4 Categories
+                    </span>
+                  )}
                 </div>
 
-                <div className="flex flex-col gap-3.5">
-                  <div className="flex items-center justify-between font-label-sm text-label-sm">
-                    <span className="flex items-center gap-1.5 text-on-surface">
-                      <span className="material-symbols-outlined text-[16px] text-primary">
-                        train
+                <div className="flex flex-col gap-3">
+                  {/* Transport Category */}
+                  <div className="flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/15">
+                    <div className="flex items-center justify-between font-label-sm text-label-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-on-surface font-semibold">
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            train
+                          </span>
+                          Transport
+                        </span>
+                        {dataSources.transport === 'live' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            Live price
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant border border-outline-variant/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" />
+                            Estimated
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-bold text-on-surface font-mono">
+                        {formatLKR(activeBreakdown.transport)}
                       </span>
-                      Transport
-                    </span>
-                    <span className="font-semibold text-on-surface">
-                      {formatLKR(breakdown.transport)}
-                    </span>
+                    </div>
+                    {costBreakdown?.transport?.details && (
+                      <span className="text-[11px] text-secondary pl-5 leading-tight">
+                        {costBreakdown.transport.details}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between font-label-sm text-label-sm">
-                    <span className="flex items-center gap-1.5 text-on-surface">
-                      <span className="material-symbols-outlined text-[16px] text-primary">
-                        hotel
+                  {/* Accommodation Category */}
+                  <div className="flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/15">
+                    <div className="flex items-center justify-between font-label-sm text-label-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-on-surface font-semibold">
+                          <span className="material-symbols-outlined text-[16px] text-primary">
+                            hotel
+                          </span>
+                          Accommodation
+                        </span>
+                        {dataSources.accommodation === 'live' ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                            Live price
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant border border-outline-variant/30">
+                            <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" />
+                            Estimated
+                          </span>
+                        )}
+                      </div>
+                      <span className="font-bold text-on-surface font-mono">
+                        {formatLKR(activeBreakdown.accommodation)}
                       </span>
-                      Accommodation
-                    </span>
-                    <span className="font-semibold text-on-surface">
-                      {formatLKR(breakdown.accommodation)}
-                    </span>
+                    </div>
+                    {costBreakdown?.accommodation?.hotelName && (
+                      <span className="text-[11px] text-secondary pl-5 leading-tight">
+                        {costBreakdown.accommodation.hotelName} ({costBreakdown.accommodation.nights} nights)
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between font-label-sm text-label-sm">
-                    <span className="flex items-center gap-1.5 text-on-surface">
-                      <span className="material-symbols-outlined text-[16px] text-tertiary">
-                        restaurant
+                  {/* Food & Dining Category */}
+                  <div className="flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/15">
+                    <div className="flex items-center justify-between font-label-sm text-label-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-on-surface font-semibold">
+                          <span className="material-symbols-outlined text-[16px] text-tertiary">
+                            restaurant
+                          </span>
+                          Food &amp; Dining
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant border border-outline-variant/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" />
+                          Estimated
+                        </span>
+                      </div>
+                      <span className="font-bold text-on-surface font-mono">
+                        {formatLKR(activeBreakdown.food)}
                       </span>
-                      Food &amp; Dining
-                    </span>
-                    <span className="font-semibold text-on-surface">
-                      {formatLKR(breakdown.food)}
-                    </span>
+                    </div>
+                    {costBreakdown?.food?.details && (
+                      <span className="text-[11px] text-secondary pl-5 leading-tight">
+                        {costBreakdown.food.details}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex items-center justify-between font-label-sm text-label-sm">
-                    <span className="flex items-center gap-1.5 text-on-surface">
-                      <span className="material-symbols-outlined text-[16px] text-secondary">
-                        hiking
+                  {/* Activities & Entry Category */}
+                  <div className="flex flex-col gap-1 p-2.5 rounded-xl bg-surface-container-low/60 border border-outline-variant/15">
+                    <div className="flex items-center justify-between font-label-sm text-label-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1.5 text-on-surface font-semibold">
+                          <span className="material-symbols-outlined text-[16px] text-secondary">
+                            hiking
+                          </span>
+                          Activities &amp; Entry
+                        </span>
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-container text-on-surface-variant border border-outline-variant/30">
+                          <span className="w-1.5 h-1.5 rounded-full bg-secondary/60" />
+                          Estimated
+                        </span>
+                      </div>
+                      <span className="font-bold text-on-surface font-mono">
+                        {formatLKR(activeBreakdown.activities)}
                       </span>
-                      Activities &amp; Entry
-                    </span>
-                    <span className="font-semibold text-on-surface">
-                      {formatLKR(breakdown.activities)}
-                    </span>
+                    </div>
+                    {costBreakdown?.activities?.details && (
+                      <span className="text-[11px] text-secondary pl-5 leading-tight">
+                        {costBreakdown.activities.details}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
