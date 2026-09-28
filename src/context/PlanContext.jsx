@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { MOCK_TRIPS, calculateBudgetStatus, formatLKR } from '../data/mockData';
 import { generateTripWithAI, isGeminiConfigured } from '../services/geminiService';
+import { buildTripForDestination } from '../services/tripBuilder.js';
 
 const PlanContext = createContext(null);
 
@@ -17,6 +18,7 @@ const DEFAULT_STATE = {
   travelStyle: 'Balanced',
   activeTripId: 'kandy-cultural-escape',
   aiCustomTrip: null,
+  customBuiltTrips: {},
   isGeneratingAI: false,
   // Track applied optimization levers per trip: { [tripId]: { [leverId]: boolean } }
   appliedOptimizations: {
@@ -63,28 +65,35 @@ export function PlanProvider({ children }) {
 
   const setBudget = (budget) => {
     const num = Math.max(1000, Number(budget) || 0);
-    setState((prev) => ({ ...prev, budget: num }));
+    // Clear old AI custom trip when budget changes
+    setState((prev) => ({ ...prev, budget: num, aiCustomTrip: null }));
   };
 
   const setTripDetails = (details) => {
     setState((prev) => {
-      let matchedTripId = prev.activeTripId;
-      if (details.destination) {
-        const dest = details.destination.toLowerCase();
-        if (dest.includes('galle') || dest.includes('mirissa') || dest.includes('south') || dest.includes('beach') || dest.includes('unawatuna')) {
-          matchedTripId = 'galle-coast';
-        } else if (dest.includes('ella') || dest.includes('nuwara') || dest.includes('mountain') || dest.includes('peak') || dest.includes('hill')) {
-          matchedTripId = 'ella-adventure';
-        } else if (dest.includes('kandy') || dest.includes('cultural') || dest.includes('temple')) {
-          matchedTripId = 'kandy-cultural-escape';
-        }
-      }
+      // Clear old AI custom trip when destination or budget changes
+      const shouldClearAi =
+        (details.destination !== undefined && details.destination !== prev.destination) ||
+        (details.budget !== undefined && details.budget !== prev.budget);
+
       return {
         ...prev,
         ...details,
-        activeTripId: matchedTripId,
+        aiCustomTrip: shouldClearAi ? null : prev.aiCustomTrip,
+        activeTripId: details.activeTripId || prev.activeTripId,
       };
     });
+  };
+
+  const registerBuiltTrip = (trip) => {
+    if (!trip || !trip.id) return;
+    setState((prev) => ({
+      ...prev,
+      customBuiltTrips: {
+        ...(prev.customBuiltTrips || {}),
+        [trip.id]: trip,
+      },
+    }));
   };
 
   const setActiveTripId = (tripId) => {
@@ -182,13 +191,39 @@ export function PlanProvider({ children }) {
   };
 
   // Helper to get trip data factoring in user budget and applied optimizations
+  // Real component numbers - NO FAKE SCALING by budget!
+  // Unknown ids return null and callers must handle it.
   const getTripCalculations = (tripId) => {
-    let baseTrip;
+    if (!tripId) return null;
+
+    let baseTrip = null;
+
     if (tripId === 'ai-generated-custom-trip' && state.aiCustomTrip) {
       baseTrip = state.aiCustomTrip;
+    } else if (state.customBuiltTrips && state.customBuiltTrips[tripId]) {
+      baseTrip = state.customBuiltTrips[tripId];
+    } else if (MOCK_TRIPS[tripId]) {
+      baseTrip = MOCK_TRIPS[tripId];
     } else {
-      baseTrip = MOCK_TRIPS[tripId] || MOCK_TRIPS['kandy-cultural-escape'];
+      // Attempt to build trip on-the-fly from tripId / destination
+      const candidate = buildTripForDestination({
+        destination: tripId,
+        budget: state.budget,
+        travelers: state.travelers,
+        durationDays: state.durationDays,
+        interests: state.interests,
+        travelStyle: state.travelStyle,
+      });
+      if (candidate && !candidate.notFound) {
+        baseTrip = candidate;
+      }
     }
+
+    // Unknown id returns null
+    if (!baseTrip) {
+      return null;
+    }
+
     const tripOpts = state.appliedOptimizations[baseTrip.id] || {
       transport: false,
       accommodation: false,
@@ -196,31 +231,19 @@ export function PlanProvider({ children }) {
     };
 
     const targetBudget = Number(state.budget) > 0 ? Number(state.budget) : 100000;
-    const baseReferenceBudget = baseTrip.targetBudget || 100000;
-    const scale = targetBudget / baseReferenceBudget;
+    const initialCost = baseTrip.initialCost || baseTrip.estimatedCost || 0;
 
-    // Scaled initial cost based on user's target budget
-    const initialCost = Math.round(baseTrip.estimatedCost * scale);
-
-    // Scaled optimization choices
-    const scaledOptions = (baseTrip.optimizationOptions || []).map((opt) => ({
-      ...opt,
-      savings: Math.round(opt.savings * scale),
-      currentCost: Math.round(opt.currentCost * scale),
-      optimizedCost: Math.round(opt.optimizedCost * scale),
-    }));
-
-    // Calculate total savings from applied options
+    // Calculate total savings from applied options (exact component figures, no scaling)
     let totalSavings = 0;
-    const scaledBreakdown = {
-      transport: Math.round((baseTrip.breakdown?.transport || 0) * scale),
-      accommodation: Math.round((baseTrip.breakdown?.accommodation || 0) * scale),
-      food: Math.round((baseTrip.breakdown?.food || 0) * scale),
-      activities: Math.round((baseTrip.breakdown?.activities || 0) * scale),
+    const baseBreakdown = baseTrip.breakdown || {
+      transport: 0,
+      accommodation: 0,
+      food: 0,
+      activities: 0,
     };
-    let adjustedBreakdown = { ...scaledBreakdown };
+    let adjustedBreakdown = { ...baseBreakdown };
 
-    scaledOptions.forEach((opt) => {
+    (baseTrip.optimizationOptions || []).forEach((opt) => {
       if (tripOpts[opt.id]) {
         totalSavings += opt.savings;
         if (opt.categoryKey === 'transport' && adjustedBreakdown.transport) {
@@ -237,20 +260,6 @@ export function PlanProvider({ children }) {
     const hasAppliedSavings = totalSavings > 0;
     const status = calculateBudgetStatus(targetBudget, finalEstimatedCost, hasAppliedSavings);
 
-    // Scale the day-by-day legs so the itinerary timeline displays accurate costs matching the budget
-    const scaledDays = (baseTrip.days || []).map((day) => ({
-      ...day,
-      legs: (day.legs || []).map((leg) => ({
-        ...leg,
-        cost: Math.round((leg.cost || 0) * scale),
-      })),
-    }));
-
-    // Dynamic rationale matching the user's budget
-    const whyRecommended = status.fits
-      ? `This trip fits your ${formatLKR(targetBudget)} budget with a comfortable ${formatLKR(status.difference)} buffer. By combining Sri Lanka Railways scenic transit with local boutique homestays, you enjoy authentic Sri Lankan travel while respecting your spending ceiling.`
-      : `A bucket-list journey that currently sits at ${formatLKR(initialCost)} (${formatLKR(status.difference)} over your ${formatLKR(targetBudget)} target budget). With TripFit LK's 1-click optimization, it easily drops to ${formatLKR(Math.max(0, initialCost - (scaledOptions.reduce((s, o) => s + o.savings, 0))))} while keeping all prime attractions intact.`;
-
     return {
       ...baseTrip,
       targetBudget,
@@ -261,10 +270,8 @@ export function PlanProvider({ children }) {
       hasAppliedSavings,
       status,
       breakdown: adjustedBreakdown,
-      optimizationOptions: scaledOptions,
-      days: scaledDays,
-      whyRecommended,
-      isSaved: state.savedTripIds.includes(baseTrip.id),
+      days: baseTrip.days || [],
+      isSaved: (state.savedTripIds || []).includes(baseTrip.id),
     };
   };
 
@@ -280,6 +287,8 @@ export function PlanProvider({ children }) {
     appliedOptimizations: state.appliedOptimizations,
     savedTripIds: state.savedTripIds,
     aiCustomTrip: state.aiCustomTrip,
+    customBuiltTrips: state.customBuiltTrips,
+    registerBuiltTrip,
     isGeneratingAI: state.isGeneratingAI,
     isGeminiConfigured: isGeminiConfigured(),
     generateLivePlan,

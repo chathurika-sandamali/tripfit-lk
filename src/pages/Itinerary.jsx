@@ -22,6 +22,30 @@ export default function Itinerary() {
   const effectiveTripId = tripId || 'kandy-cultural-escape';
   const selectedTrip = getTripCalculations(effectiveTripId);
 
+  // Guard: Handle unknown or not found trip id gracefully
+  if (!selectedTrip) {
+    return (
+      <div className="w-full bg-surface min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+        <div className="max-w-md w-full bg-surface-container-lowest p-8 rounded-2xl shadow-sm text-center border border-outline-variant/30 space-y-4">
+          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-800 flex items-center justify-center mx-auto">
+            <span className="material-symbols-outlined text-[28px]">search_off</span>
+          </div>
+          <h2 className="text-xl font-bold text-on-surface">Trip Itinerary Not Found</h2>
+          <p className="text-sm text-on-surface-variant">
+            We couldn't locate an itinerary for "{effectiveTripId}". Please explore our recommended Sri Lankan destinations.
+          </p>
+          <Link
+            to="/recommendations"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-on-primary font-semibold text-sm hover:bg-primary/90 transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px]">arrow_back</span>
+            Back to Recommendations
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   // Live / Hybrid Cost Engine state
   const [costBreakdown, setCostBreakdown] = useState(null);
   const [isLoadingCost, setIsLoadingCost] = useState(false);

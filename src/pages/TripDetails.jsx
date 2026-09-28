@@ -168,8 +168,8 @@ export default function TripDetails() {
               </div>
               <button
                 type="button"
-                onClick={() => setDestination('Kandy & Hill Country')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest hover:bg-surface text-primary-container font-label-sm text-label-sm font-semibold rounded-lg shadow-sm shrink-0 transition-all self-start sm:self-auto border border-outline-variant/30"
+                onClick={() => setDestination('Anywhere in Sri Lanka')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-surface-container-lowest hover:bg-surface text-primary font-label-sm text-label-sm font-semibold rounded-lg shadow-sm shrink-0 transition-all self-start sm:self-auto border border-outline-variant/30 cursor-pointer"
               >
                 <span>✨ Let AI recommend</span>
               </button>
